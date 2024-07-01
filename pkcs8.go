@@ -36,7 +36,7 @@ type KDFOpts interface {
 	OID() asn1.ObjectIdentifier
 }
 
-// KDFParameters contains parameters (salt, etc.) for a key deriviation function.
+// KDFParameters contains parameters (salt, etc.) for a key derivation function.
 // It must be a ASN.1-decodable structure.
 // An implementation of this interface is created when decoding an encrypted PKCS#8 key.
 type KDFParameters interface {
@@ -81,7 +81,7 @@ type Opts struct {
 	KDFOpts KDFOpts
 }
 
-// Unecrypted PKCS8
+// Unencrypted PKCS8
 var (
 	oidPBES2 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 5, 13}
 )
