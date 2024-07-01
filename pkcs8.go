@@ -184,6 +184,56 @@ func ParsePrivateKey(der []byte, password []byte) (interface{}, KDFParameters, e
 	return key, kdfParams, nil
 }
 
+// DecryptData decrypts a EncryptedData of PBES2 with the given password.
+func DecryptData(der []byte, password []byte) ([]byte, error) {
+	if len(der) == 0 {
+		return nil, errors.New("pkcs8: no data provided")
+	}
+
+	if len(password) == 0 {
+		return nil, errors.New("pkcs8: no password provided")
+	}
+
+	// Use the password provided to decrypt the private key
+	var privKey encryptedPrivateKeyInfo
+	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
+		return nil, errors.New("pkcs8: only PKCS #5 v2.0 supported")
+	}
+
+	if !privKey.EncryptionAlgorithm.Algorithm.Equal(oidPBES2) {
+		return nil, errors.New("pkcs8: only PBES2 supported")
+	}
+
+	var params pbes2Params
+	if _, err := asn1.Unmarshal(privKey.EncryptionAlgorithm.Parameters.FullBytes, &params); err != nil {
+		return nil, errors.New("pkcs8: invalid PBES2 parameters")
+	}
+
+	cipher, iv, err := parseEncryptionScheme(params.EncryptionScheme)
+	if err != nil {
+		return nil, err
+	}
+
+	kdfParams, err := parseKeyDerivationFunc(params.KeyDerivationFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	keySize := cipher.KeySize()
+	symkey, err := kdfParams.DeriveKey(password, keySize)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedKey := privKey.EncryptedData
+	decryptedKey, err := cipher.Decrypt(symkey, iv, encryptedKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return decryptedKey, nil
+}
+
 // MarshalPrivateKey encodes a private key into DER-encoded PKCS#8 with the given options.
 // Password can be nil.
 func MarshalPrivateKey(priv interface{}, password []byte, opts *Opts) ([]byte, error) {
